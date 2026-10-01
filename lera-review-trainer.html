@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Работа над ошибками: ревью о песне</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600;700&family=Golos+Text:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#E8EDF4; --paper:#FCFDFF; --grid:#C8D6EA; --margin:#E39C9C;
+  --ink:#24409B; --red:#C42B22; --green:#2F7A4E;
+  --text:#1D2433; --muted:#5A6477; --panel:#FFFFFF; --line:#D3DCE9;
+  --hl:rgba(255,212,60,.45);
+  --hand:"Caveat","Segoe Print","Bradley Hand",cursive;
+  --ui:"Golos Text",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#141922; --paper:#1D2330; --grid:#2C384C; --margin:#7A3D3D;
+    --ink:#A8BCFF; --red:#FF8B7C; --green:#7FD6A0;
+    --text:#E6EAF2; --muted:#9AA4B5; --panel:#191F29; --line:#2D3646;
+    --hl:rgba(255,212,60,.22);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#141922; --paper:#1D2330; --grid:#2C384C; --margin:#7A3D3D;
+  --ink:#A8BCFF; --red:#FF8B7C; --green:#7FD6A0;
+  --text:#E6EAF2; --muted:#9AA4B5; --panel:#191F29; --line:#2D3646;
+  --hl:rgba(255,212,60,.22);
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--text);font:400 16px/1.55 var(--ui);-webkit-font-smoothing:antialiased}
+.wrap{max-width:680px;margin:0 auto;padding:22px 16px 40px}
+header h1{font:700 2.7rem/1 var(--hand);color:var(--ink);margin:0 0 6px}
+header p{margin:0;color:var(--muted)}
+#progress{margin-top:10px;font-size:.88rem;color:var(--muted);min-height:1.3em}
+
+.page{position:relative;margin-top:18px;background-color:var(--paper);
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+  background-size:22px 22px;background-position:-1px -1px;
+  padding:22px 18px 26px 54px;border-radius:3px 8px 8px 3px;
+  box-shadow:0 1px 0 var(--line),0 14px 30px -20px rgba(25,45,90,.45);
+  overflow-x:auto}
+.page::before{content:"";position:absolute;left:40px;top:0;bottom:0;width:1.5px;background:var(--margin)}
+.page h2{font:600 1.75rem/1 var(--hand);color:var(--ink);margin:0 0 6px;display:inline-block;border-bottom:1.5px solid var(--ink)}
+.text{font:400 1.7rem/2.85 var(--hand);color:var(--ink);margin:0}
+.ex{font:400 1.7rem/2.85 var(--hand);color:var(--ink);position:relative}
+.ex .num{position:absolute;right:calc(100% + 18px);font-size:.85em;color:var(--muted);text-align:right}
+
+.sent{box-decoration-break:clone;-webkit-box-decoration-break:clone}
+.sent.active{background:linear-gradient(transparent 40%,var(--hl) 40%,var(--hl) 84%,transparent 84%)}
+.sent.future{opacity:.45}
+.seg{position:relative;border-radius:4px}
+.seg.tap{cursor:pointer}
+.seg.tap:hover{text-decoration:underline dotted var(--muted);text-underline-offset:5px}
+.gap{display:inline-block;width:.9em;text-align:center;position:relative;line-height:1.2;vertical-align:baseline}
+.gap.tap{cursor:pointer;border-radius:4px}
+.gap .dot{display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--grid);vertical-align:middle}
+.gap.tap:hover .dot{background:var(--ink)}
+.tap:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.seg.fixed,.gap.ins{display:inline-block;position:relative;line-height:1.2;white-space:nowrap}
+.gap.ins{width:auto;min-width:.9em}
+.seg.fixed .orig{text-decoration:line-through 2px var(--red)}
+.gap.ins .caret{color:var(--red);font:600 .75em var(--ui)}
+.above{position:absolute;left:50%;bottom:100%;transform:translateX(-50%);font:600 .86em/1 var(--hand);color:var(--red);white-space:nowrap;pointer-events:none}
+.sel{outline:2px solid var(--ink);outline-offset:2px}
+.pulse{outline:2px dashed var(--red);outline-offset:3px;animation:blink .9s ease-in-out infinite alternate}
+@keyframes blink{from{outline-color:var(--red)}to{outline-color:transparent}}
+.nope{animation:shake .32s}
+@keyframes shake{25%{transform:translateX(-3px)}75%{transform:translateX(3px)}}
+@media (prefers-reduced-motion:reduce){.pulse{animation:none}.nope{animation:none;color:var(--red)}}
+
+.panel{margin-top:16px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px 18px 20px}
+.panel p{margin:0 0 10px}
+.lead{font-weight:600;font-size:1.06rem}
+.count b{color:var(--ink)}
+.howto{color:var(--muted);font-size:.95rem}
+.msg{color:var(--text);background:var(--bg);border-radius:6px;padding:8px 12px}
+.msg.ok{color:var(--green)}
+.row{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
+.btn{font:600 1rem var(--ui);background:var(--ink);color:var(--paper);border:0;border-radius:6px;padding:.7em 1.15em;cursor:pointer}
+.btn.ghost{background:transparent;color:var(--ink);box-shadow:inset 0 0 0 1.5px var(--ink)}
+.btn:focus-visible,.opt:focus-visible,input:focus-visible{outline:2px solid var(--red);outline-offset:2px}
+.opts{display:flex;flex-direction:column;gap:8px;margin-top:6px}
+.opt{font:400 1.55rem/1.2 var(--hand);color:var(--ink);text-align:left;background:var(--paper);border:1.5px dashed var(--line);border-radius:6px;padding:8px 14px;cursor:pointer}
+.opt:hover{border-color:var(--ink)}
+.opt.wrong{color:var(--muted);text-decoration:line-through 2px var(--red);cursor:default;opacity:.7}
+.opt.right{border-style:solid;border-color:var(--green);color:var(--green)}
+.type{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}
+.type input{flex:1 1 200px;font:400 1.55rem/1.2 var(--hand);color:var(--ink);background:var(--paper);border:1.5px solid var(--line);border-radius:6px;padding:6px 12px;min-width:0}
+.hand{font-family:var(--hand);color:var(--ink);font-size:1.5rem;line-height:1.35}
+.red{color:var(--red)}
+.clean{margin:4px 0 0}
+.speak{font:500 .9rem var(--ui);background:none;border:0;color:var(--ink);cursor:pointer;padding:4px 0;text-decoration:underline;text-underline-offset:3px}
+
+.rule{border-left:4px solid var(--red);padding:2px 0 2px 14px}
+.rule h3{font:700 1.9rem/1.05 var(--hand);color:var(--red);margin:0 0 4px}
+.rule .term{color:var(--muted);font-size:.9rem;margin-bottom:10px}
+.rule ul{list-style:none;padding:0;margin:10px 0}
+.rule li{font:400 1.45rem/1.35 var(--hand);color:var(--ink)}
+.rule li span{font:400 .9rem var(--ui);color:var(--muted);margin-left:6px}
+.rule li b{color:var(--red);font-weight:700}
+.rule .tip{font-size:.93rem;color:var(--muted)}
+.tbl{display:grid;grid-template-columns:auto auto;gap:0 22px;justify-content:start;font:400 1.4rem/1.35 var(--hand);color:var(--ink);margin:8px 0}
+.tbl .r{color:var(--red)}
+.steps{margin:6px 0 4px;padding-left:1.2em}
+.steps li{margin-bottom:6px}
+.better{padding-left:1.1em;margin:6px 0 0}
+.better li{margin-bottom:8px}
+details{border-top:1px solid var(--line);padding:10px 0}
+summary{cursor:pointer;font-weight:600}
+details .rule{margin-top:10px}
+.stat{margin:4px 0}
+.nb{white-space:nowrap}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.essay{display:block;width:100%;min-height:150px;margin-top:6px;font:400 1.5rem/1.35 var(--hand);color:var(--ink);background:var(--paper);border:1.5px solid var(--line);border-radius:6px;padding:8px 12px;resize:vertical}
+.essay:focus-visible{outline:2px solid var(--red);outline-offset:2px}
+.checks{list-style:none;padding:0;margin:10px 0 0}
+.checks li{margin-bottom:6px}
+.checks label{display:flex;gap:10px;align-items:flex-start;cursor:pointer}
+.checks input{margin-top:.3em;width:18px;height:18px;flex:none;accent-color:var(--ink)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Работа над ошибками</h1>
+    <p>Твоё ревью о песне Шер. Найди ошибки и исправь их сама.</p>
+    <div id="progress"></div>
+  </header>
+  <div class="page" id="page"></div>
+  <div class="panel" id="panel"></div>
+  <div class="sr" id="sr" aria-live="polite"></div>
+</div>
+<script>
+const T = s => s.split(' ');
+
+const RULES = {
+  be:{title:"am / is / are",term:"Это называется: глагол-связка to be",
+    body:"По-русски мы говорим «Она певица», «Песня лёгкая» — без глагола. В английском так нельзя: между подлежащим и описанием обязательно стоит am, is или are.",
+    ex:["She <b>is</b> a singer.","The song <b>is</b> easy.","I <b>am</b> tired."],
+    tip:"Проверка: после she, he, it или the song сразу идёт описание? Значит, нужно is."},
+  article:{title:"a и the",term:"Это называется: артикли — неопределённый (a) и определённый (the)",
+    body:"a — «один из многих», когда называем что-то впервые. the — «тот самый», когда понятно, о чём именно речь.",
+    ex:["She is <b>a</b> famous singer. <span>одна из многих известных певиц</span>","<b>The</b> chorus is easy. <span>припев именно этой песни</span>"]},
+  reflexive:{title:"myself, herself…",term:"Это называется: возвратные местоимения",
+    body:"По-русски «себя» подходит для всех. В английском у каждого своё слово.",
+    table:[["I","myself"],["you","yourself"],["he","himself"],["she","herself"],["it","itself"],["we","ourselves"],["they","themselves"]],
+    ex:["She wrote it for <b>herself</b>."]},
+  third:{title:"she wants — с -s",term:"Это называется: Present Simple, 3-е лицо единственного числа",
+    body:"В настоящем времени после he, she, it (и после имени: Lera, Cher) к глаголу добавляется -s.",
+    ex:["I want — she want<b>s</b>","I sing — she sing<b>s</b>","I like — he like<b>s</b>"]},
+  chunk:{title:"tired of being…",term:"Это называется: устойчивое выражение (форма на -ing после предлога — герундий)",
+    body:"«Устала быть» по-английски не tired be, а tired of being. Правило пока учить не нужно — запомни фразу целиком.",
+    ex:["I'm tired <b>of being</b> alone.","I'm tired <b>of waiting</b>.","I'm afraid <b>of flying</b>."]},
+  possessive:{title:"this song by Cher",term:"Это называется: притяжательный падеж ('s)",
+    body:"this и Cher's вместе не ставятся: оба слова уточняют, о какой песне речь. Выбери что-то одно.",
+    ex:["I liked <b>this song by Cher</b>.","I liked <b>Cher's song</b>."]},
+  and:{title:"love and support",term:"Это называется: союз and",
+    body:"Когда перечисляем два слова, между ними нужен and — как «и» по-русски.",
+    ex:["love <b>and</b> support","coffee <b>and</b> tea"]},
+  spelling:{title:"Как пишется",term:"Это называется: орфография",
+    body:"memorised и memorized — обе формы правильные: британская и американская. В quickly буквы c и k идут вместе: quick + ly.",
+    ex:["memori<b>s</b>ed / memori<b>z</b>ed","qui<b>ck</b>ly"]}
+};
+
+const TEXT = [
+  {tokens:T("I liked this Cher's song ."),fixes:[
+    {type:"replace",from:2,to:4,answer:"this song by Cher",options:["this song by Cher","these Cher's song","this Cher's songs"],rules:["possessive"],hint:"Перед song два слова «спорят» друг с другом — одно лишнее."}]},
+  {tokens:T("She very famous singer and wrote this music in 1999 for yourself ."),fixes:[
+    {type:"insert",gap:1,answer:"is a",options:["is a","is","a","are a"],rules:["be","article"],hint:"Здесь пропущены слова: не хватает глагола и ещё одного маленького слова."},
+    {type:"replace",from:11,to:11,answer:"herself",options:["herself","himself","myself"],rules:["reflexive"],hint:"Ищи слово «себя»: подходит ли оно к she?"}]},
+  {tokens:T("She is singing about love and loneliness ."),fixes:[]},
+  {tokens:T("She tired be alone and want love , support from another person ."),fixes:[
+    {type:"insert",gap:1,answer:"is",options:["is","are","am"],rules:["be"],hint:"Пропущен глагол: «она … устала»."},
+    {type:"replace",from:2,to:2,answer:"of being",options:["of being","to be","of be"],rules:["chunk"],hint:"«Устала быть» построено по-русски. Ищи рядом с tired."},
+    {type:"replace",from:5,to:5,answer:"wants",options:["wants","wanting","to want"],rules:["third"],hint:"Один глагол не согласован с she."},
+    {type:"replace",from:6,to:8,answer:"love and support",options:["love and support","love but support","love so support"],rules:["and"],hint:"В перечислении двум словам не хватает связки."}]},
+  {tokens:T("I like her voice in this song ."),fixes:[]},
+  {tokens:T("Also chorus of the song very easy and I memoriced it quicly ."),fixes:[
+    {type:"insert",gap:1,answer:"the",options:["the","a","an"],rules:["article"],hint:"Перед существительным пропущено маленькое слово: какой именно припев?"},
+    {type:"insert",gap:5,answer:"is",options:["is","are","be"],rules:["be"],hint:"Пропущен глагол: «припев … лёгкий»."},
+    {type:"replace",from:9,to:9,answer:"memorised",accept:["memorised","memorized"],options:["memorised","memoriesed","memorysed"],rules:["spelling"],hint:"Здесь есть слова с ошибками в написании."},
+    {type:"replace",from:11,to:11,answer:"quickly",options:["quickly","quikly","qwickly"],rules:["spelling"],hint:"Здесь есть слова с ошибками в написании."}]}
+];
+
+const TRANSFER = [
+  {tokens:T("My favourite drink coffee ."),fixes:[
+    {type:"insert",gap:3,answer:"is",rules:["be"],hint:"Пропущен глагол."}]},
+  {tokens:T("Lera want a cappuccino , and her friends want tea ."),fixes:[
+    {type:"replace",from:1,to:1,answer:"wants",rules:["third"],hint:"Один глагол не согласован с подлежащим."}]},
+  {tokens:T("I often listen to this Adele's song ."),fixes:[
+    {type:"replace",from:4,to:6,answer:"this song by Adele",accept:["this song by Adele","Adele's song"],rules:["possessive"],hint:"Перед song два слова «спорят» друг с другом — одно лишнее."}]},
+  {tokens:T("Miranda very strict , and she is boss of a big magazine ."),fixes:[
+    {type:"insert",gap:1,answer:"is",rules:["be"],hint:"Пропущен глагол после Miranda."},
+    {type:"insert",gap:7,answer:"the",rules:["article"],hint:"Перед существительным пропущен артикль."}]},
+  {tokens:T("He made this coffee for yourself ."),fixes:[
+    {type:"replace",from:5,to:5,answer:"himself",rules:["reflexive"],hint:"Ищи слово «себя»: подходит ли оно к he?"}]},
+  {tokens:T("I am tired of be late ."),fixes:[
+    {type:"replace",from:3,to:4,answer:"of being",rules:["chunk"],hint:"Вспомни фразу из твоего текста: tired … alone."}]},
+  {tokens:T("The song very sad , and the singer sing about love ."),fixes:[
+    {type:"insert",gap:2,answer:"is",rules:["be"],hint:"Пропущен глагол."},
+    {type:"replace",from:8,to:8,answer:"sings",rules:["third"],hint:"Один глагол не согласован с the singer."}]},
+  {tokens:T("I like latte , cappuccino ."),fixes:[
+    {type:"replace",from:2,to:4,answer:"latte and cappuccino",accept:["latte and cappuccino","lattes and cappuccinos"],rules:["and"],hint:"Двум словам в перечислении не хватает связки."}]},
+  {tokens:T("She made this cake for myself ."),fixes:[
+    {type:"replace",from:5,to:5,answer:"herself",accept:["herself","me"],rules:["reflexive"],hint:"Ищи слово «себя»: подходит ли оно к she?"}]},
+  {tokens:T("I memorised the words very quicly ."),fixes:[
+    {type:"replace",from:5,to:5,answer:"quickly",rules:["spelling"],hint:"Одно слово написано с ошибкой."}]}
+];
+
+const BETTER = [
+  "«wrote this music» → «wrote this <b>song</b>»: music — это мелодия, а песня целиком — song.",
+  "«She is singing about…» → «She <b>sings</b> about…»: так обычно говорят о содержании песни. Ошибкой это не считается.",
+  "Запятые: «Also<b>,</b> the chorus of the song is very easy<b>,</b> and I memorised it quickly.»"
+];
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const isP = t => /^[.,!?;:]$/.test(t);
+const join = arr => arr.reduce((a,t,i) => i===0 ? t : a + (isP(t)?'':' ') + t, '');
+const norm = s => s.toLowerCase().replace(/[’`]/g,"'").replace(/[.!?,;:]+$/,'').replace(/\s+/g,' ').trim();
+const shuffle = a => { const b=a.slice(); for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]];} return b; };
+
+[["s1",TEXT],["s2",TRANSFER]].forEach(([k,list]) => list.forEach((s,i) => s.fixes.forEach((f,j) => f.id=`${k}-${i}-${j}`)));
+
+let st;
+function reset(){
+  st = {stage:'intro', idx:0, fx:{}, seen:new Set(), queue:[], open:null, hint:0, hintFor:null, pulse:null, mode:'hunt', msg:'', msgOk:false, typed:'',
+        misses:0, missTotal:{s1:0,s2:0}, essay:'', checks:[]};
+  [...TEXT,...TRANSFER].forEach(s => s.fixes.forEach(f => st.fx[f.id] = {done:false, attempts:0, hinted:false, status:null, order:null, wrong:[]}));
+}
+
+const list = () => st.stage==='s2' ? TRANSFER : TEXT;
+const cur = () => list()[st.idx];
+const left = s => s.fixes.filter(f => !st.fx[f.id].done);
+
+function segments(s){
+  const segs=[]; let i=0;
+  while(i<s.tokens.length){
+    const f = s.fixes.find(f => f.type==='replace' && f.from===i);
+    if(f){ segs.push({from:i,to:f.to,fix:f}); i=f.to+1; }
+    else { segs.push({from:i,to:i}); i++; }
+  }
+  return segs;
+}
+
+// Каждый «кусок» = промежуток перед словом + само слово (+ знаки препинания после него).
+// Знаки препинания и вставленное слово держатся вместе со своим словом (.nb), чтобы не отрываться при переносе строки.
+function sentHTML(s, cls){
+  const live = cls==='active' && (st.mode==='hunt' || st.mode==='fix');
+  const pieces=[];
+  segments(s).forEach((g,k) => {
+    const txt = join(s.tokens.slice(g.from, g.to+1));
+    let body;
+    if(g.fix && st.fx[g.fix.id].done) body = `<span class="seg fixed"><span class="orig">${esc(txt)}</span><span class="above">${esc(g.fix.answer)}</span></span>`;
+    else body = `<span class="seg${live?' tap':''}" data-from="${g.from}"${live?' role="button" tabindex="0"':''}>${esc(txt)}</span>`;
+    if(k>0 && isP(s.tokens[g.from])){ pieces[pieces.length-1].body += body; return; }
+    let pre='', ins='';
+    if(k>0){
+      const f = s.fixes.find(f => f.type==='insert' && f.gap===g.from);
+      if(f && st.fx[f.id].done) ins = `<span class="gap ins"><span class="caret">∧</span><span class="above">${esc(f.answer)}</span></span>`;
+      else if(live) pre = `<span class="gap tap" data-g="${g.from}" role="button" tabindex="0" aria-label="промежуток между словами"><span class="dot"></span></span><wbr>`;
+      else pre = ' ';
+      if(ins) pre = ' ';
+    }
+    pieces.push({pre, ins, body});
+  });
+  const h = pieces.map(p => p.pre + `<span class="nb">${p.ins}${p.body}</span>`).join('');
+  return `<span class="sent ${cls}">${h}</span>`;
+}
+
+function clean(s){
+  const out=[];
+  s.tokens.forEach((t,i) => {
+    const ins = s.fixes.find(f => f.type==='insert' && f.gap===i);
+    if(ins) out.push(ins.answer);
+    const rep = s.fixes.find(f => f.type==='replace' && f.from<=i && i<=f.to);
+    if(rep){ if(i===rep.from) out.push(rep.answer); } else out.push(t);
+  });
+  return join(out);
+}
+
+function targetSel(f){
+  return f.type==='insert' ? `.sent.active .gap[data-g="${f.gap}"]` : `.sent.active .seg[data-from="${f.from}"]`;
+}
+
+// Надписи над исправлениями не должны заходить за поля и за правый край листа
+function fitLabels(){
+  const page = $('#page'), pr = page.getBoundingClientRect();
+  const minL = pr.left + 46, maxR = pr.right - 6, gap = 8;
+  const els = [...page.querySelectorAll('.above')];
+  els.forEach(a => a.style.transform = '');
+  const items = els.map(a => { const r = a.getBoundingClientRect(); return {a, top:r.top, l:r.left, w:r.width}; });
+  // группируем по строкам, внутри строки — слева направо
+  items.sort((x,y) => Math.abs(x.top-y.top) > 6 ? x.top-y.top : x.l-y.l);
+  const lines = [];
+  items.forEach(it => { const ln = lines[lines.length-1]; if(ln && Math.abs(ln[0].top-it.top) <= 6) ln.push(it); else lines.push([it]); });
+  lines.forEach(ln => {
+    // слева направо: не заходить за поля и не налезать на соседа
+    let edge = minL;
+    ln.forEach(it => { it.x = Math.max(it.l, edge); edge = it.x + it.w + gap; });
+    // справа налево: не выходить за правый край
+    edge = maxR;
+    for(let i = ln.length-1; i >= 0; i--){ const it = ln[i]; if(it.x + it.w > edge) it.x = edge - it.w; edge = it.x - gap; }
+    ln.forEach(it => { const dx = Math.round(it.x - it.l); if(dx) it.a.style.transform = `translateX(calc(-50% + ${dx}px))`; });
+  });
+}
+
+function renderPage(){
+  const p = $('#page');
+  if(st.stage==='s2' || st.stage==='final'){
+    const last = st.stage==='final' ? TRANSFER.length-1 : st.idx;
+    p.innerHTML = '<h2>Упражнение</h2>' + TRANSFER.slice(0,last+1).map((s,i) =>
+      `<div class="ex"><span class="num">${i+1}.</span>${sentHTML(s, st.stage==='s2' && i===st.idx ? 'active' : 'past')}</div>`).join('');
+  } else {
+    p.innerHTML = '<h2>review</h2><p class="text">' + TEXT.map((s,i) => {
+      let cls = 'past';
+      if(st.stage==='s1') cls = i<st.idx ? 'past' : i===st.idx ? 'active' : 'future';
+      return sentHTML(s, cls);
+    }).join(' ') + '</p>';
+  }
+  if(st.open){ const el=$(targetSel(st.open)); if(el) el.classList.add('sel'); }
+  if(st.pulse){ const el=$(targetSel(st.pulse)); if(el) el.classList.add('pulse'); }
+  fitLabels();
+}
+
+function ruleHTML(id){
+  const r = RULES[id];
+  let h = `<div class="rule"><h3>${r.title}</h3><div class="term">${r.term}</div><p>${r.body}</p>`;
+  if(r.table) h += `<div class="tbl">${r.table.map(([a,b]) => `<span>${a}</span><span class="r">${b}</span>`).join('')}</div>`;
+  h += `<ul>${r.ex.map(e => `<li>${e}</li>`).join('')}</ul>`;
+  if(r.tip) h += `<p class="tip">${r.tip}</p>`;
+  return h + '</div>';
+}
+
+function stats(key){
+  const all = (key==='s1'?TEXT:TRANSFER).flatMap(s => s.fixes);
+  const c = {self:0,hint:0,shown:0};
+  all.forEach(f => { const s=st.fx[f.id].status; if(s) c[s]++; });
+  return `<p class="stat">Нашла и исправила сама: <b>${c.self}</b> из ${all.length}</p><p class="stat">С подсказкой: <b>${c.hint}</b></p><p class="stat">Разобрали вместе: <b>${c.shown}</b></p><p class="stat">Промахов при поиске: <b>${st.missTotal[key]}</b></p>`;
+}
+
+const speakBtn = t => canSpeak ? `<button class="speak" data-act="speak" data-text="${esc(t)}">Послушать</button>` : '';
+
+const CHECKS = [
+  "После she, he, it, the song и т. п. стоит is (или are после they)",
+  "Перед существительным стоит a или the, где нужно",
+  "Глагол после she, he, it — с -s: she sings, he likes",
+  "Между двумя словами в перечислении есть and",
+  "this song by …, а не this …'s song",
+  "«Себя» — правильное слово: herself, himself, myself…"
+];
+
+function renderPanel(){
+  const p = $('#panel'); let h='';
+  const msg = st.msg ? `<p class="msg${st.msgOk?' ok':''}">${st.msg}</p>` : '';
+  if(st.stage==='intro'){
+    h = `<p class="lead">Как это работает</p>
+      <ol class="steps">
+        <li>Предложения подсвечиваются по очереди. Под текстом видно, сколько в нём ошибок.</li>
+        <li>Нажми на слово с ошибкой. Если слово пропущено, нажми на точку между словами.</li>
+        <li>Не нажимай наугад: промахи считаются. После двух промахов найденная ошибка засчитается как «с подсказкой».</li>
+        <li>Не получается найти — бери подсказку.</li>
+        <li>В первой части выбираешь правильный вариант, во второй пишешь его сама. В конце — короткий текст от тебя.</li>
+      </ol>
+      <div class="row"><button class="btn" data-act="start">Начать</button></div>`;
+  } else if(st.stage==='s1done'){
+    const full = TEXT.map(clean).join(' ');
+    h = `<p class="lead">Твой текст исправлен</p>${stats('s1')}
+      <p class="lead" style="margin-top:16px">Чистовик</p>
+      <p class="hand clean">${esc(full)}</p>${speakBtn(full)}
+      <p class="lead" style="margin-top:16px">Можно ещё лучше</p>
+      <ul class="better">${BETTER.map(b => `<li>${b}</li>`).join('')}</ul>
+      <div class="row"><button class="btn" data-act="part2">Перейти ко второй части</button></div>`;
+  } else if(st.stage==='final'){
+    h = `<p class="lead">Вторая часть готова!</p>${stats('s2')}
+      <p class="lead" style="margin-top:18px">Последнее задание: напиши сама</p>
+      <p>Напиши 2–3 предложения о другой песне или фильме, который тебе нравится. Потом проверь себя по списку и отправь текст мне.</p>
+      <textarea class="essay" id="essay" aria-label="Твой текст" autocapitalize="sentences" spellcheck="false" placeholder="I like…">${esc(st.essay)}</textarea>
+      <p class="lead" style="margin-top:14px">Проверь себя</p>
+      <ul class="checks">${CHECKS.map((c,i) => `<li><label><input type="checkbox" data-c="${i}"${st.checks[i]?' checked':''}><span>${esc(c)}</span></label></li>`).join('')}</ul>
+      <div class="row"><button class="btn" data-act="copy">Скопировать текст</button></div>
+      <p class="lead" style="margin-top:18px">Правила, которые мы повторили</p>
+      ${[...st.seen].map(id => `<details><summary>${RULES[id].title}</summary>${ruleHTML(id)}</details>`).join('')}
+      <div class="row"><button class="btn ghost" data-act="restart">Пройти заново</button></div>`;
+  } else if(st.mode==='rule'){
+    h = ruleHTML(st.queue[0]) + `<div class="row"><button class="btn" data-act="rule-ok">Понятно</button></div>`;
+  } else if(st.mode==='done'){
+    const c = clean(cur()); const lastOne = st.idx===list().length-1;
+    h = `${msg}<p class="lead">Предложение исправлено</p><p class="hand clean">${esc(c)}</p>${speakBtn(c)}
+      <div class="row"><button class="btn" data-act="next">${lastOne?'Закончить часть':'Следующее предложение'}</button></div>`;
+  } else if(st.mode==='reveal'){
+    const f = st.open;
+    h = `<p class="lead">Правильно так: <span class="hand red">${esc(f.answer)}</span></p><p>${f.hint}</p>
+      <div class="row"><button class="btn" data-act="ack">Понятно</button></div>`;
+  } else if(st.mode==='fix'){
+    const f = st.open, s = cur(), r = st.fx[f.id];
+    const orig = f.type==='replace' ? join(s.tokens.slice(f.from,f.to+1)) : '';
+    h = `<p class="lead">${f.type==='insert' ? 'Что здесь пропущено?' : `Как правильно вместо «${esc(orig)}»?`}</p>`;
+    if(st.stage==='s1'){
+      h += `<div class="opts">${r.order.map((o,i) => {
+        const w = r.wrong.includes(o);
+        return `<button class="opt${w?' wrong':''}" data-act="opt" data-i="${i}"${w?' disabled':''}>${esc(o)}</button>`;
+      }).join('')}</div>`;
+    } else {
+      h += `<div class="type"><input id="ans" value="${esc(st.typed)}" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="${f.type==='insert'?'пропущенное слово':'правильный вариант'}" aria-label="Твой ответ"><button class="btn" data-act="check">Проверить</button></div>`;
+    }
+    h += msg + `<div class="row"><button class="btn ghost" data-act="back">Назад к предложению</button></div>`;
+  } else {
+    const s = cur(), total = s.fixes.length, l = left(s).length;
+    if(total===0){
+      h = `<p class="lead">В этом предложении ошибок нет. Так держать!</p>
+        <div class="row"><button class="btn" data-act="next">${st.idx===list().length-1?'Закончить часть':'Следующее предложение'}</button></div>`;
+    } else {
+      h = `<p class="count">Ошибок в предложении: <b>${total}</b>${l<total?`. Осталось найти: <b>${l}</b>`:''}</p>
+        <p class="howto">Нажми на слово с ошибкой. Если слово пропущено, нажми на точку между словами.</p>${msg}
+        <div class="row"><button class="btn ghost" data-act="hint">${['Подсказка','Ещё подсказка','Покажи, где ошибка'][Math.min(st.hint,2)]}</button></div>`;
+    }
+  }
+  p.innerHTML = h;
+  const tmp = document.createElement('div'); tmp.innerHTML = st.msg || '';
+  $('#sr').textContent = tmp.textContent;
+  const inp = $('#ans');
+  if(inp){ inp.addEventListener('keydown', e => { if(e.key==='Enter') check(); }); inp.focus({preventScroll:true}); }
+}
+
+function renderProgress(){
+  const pr = $('#progress');
+  if(st.stage==='s1') pr.textContent = `Часть 1 из 2: твой текст. Предложение ${st.idx+1} из ${TEXT.length}`;
+  else if(st.stage==='s2') pr.textContent = `Часть 2 из 2: тренировка. Упражнение ${st.idx+1} из ${TRANSFER.length}`;
+  else if(st.stage==='s1done') pr.textContent = 'Часть 1 из 2 пройдена';
+  else if(st.stage==='final') pr.textContent = 'Обе части пройдены';
+  else pr.textContent = '';
+}
+
+function render(){ renderProgress(); renderPage(); renderPanel(); }
+
+function openFix(f){
+  const r = st.fx[f.id];
+  if(st.hintFor===f) r.hinted = true;
+  if(f.options && !r.order) r.order = shuffle(f.options);
+  st.open=f; st.mode='fix'; st.msg=''; st.msgOk=false; st.typed=''; st.pulse=null;
+  render();
+  $('#panel').scrollIntoView({block:'nearest',behavior:'smooth'});
+}
+
+function resolve(f, status, msg){
+  const r = st.fx[f.id]; r.done=true; if(!r.status) r.status=status;
+  st.open=null; st.typed=''; st.misses=0;
+  // Подсказка относилась к этой ошибке — сбрасываем. Если к другой — она остаётся в силе.
+  if(!st.hintFor || st.hintFor===f){ st.hint=0; st.hintFor=null; st.pulse=null; }
+  f.rules.forEach(id => { if(!st.seen.has(id)){ st.seen.add(id); st.queue.push(id); } });
+  const l = left(cur()).length;
+  st.msg = msg + (l ? ` Осталось найти: ${l}.` : ''); st.msgOk = true;
+  st.mode = st.queue.length ? 'rule' : 'after';
+  if(st.mode==='after') afterResolve(); else render();
+}
+function afterResolve(){ st.mode = left(cur()).length ? 'hunt' : 'done'; render(); }
+
+const statusOf = r => (r.attempts===0 && !r.hinted) ? 'self' : 'hint';
+
+function choose(i){
+  const f=st.open, r=st.fx[f.id], o=r.order[i];
+  if(o===f.answer){ resolve(f, statusOf(r), 'Верно!'); return; }
+  r.attempts++; r.wrong.push(o);
+  if(r.attempts>=2){ r.status='shown'; st.mode='reveal'; }
+  else { st.msg = 'Не совсем. ' + f.hint; st.msgOk=false; }
+  render();
+}
+
+function check(){
+  const f=st.open, r=st.fx[f.id], raw=$('#ans').value, v=norm(raw);
+  st.typed = raw;
+  if(!v){ st.msg='Напиши ответ в поле.'; st.msgOk=false; renderPanel(); return; }
+  if((f.accept||[f.answer]).map(norm).includes(v)){ resolve(f, statusOf(r), 'Верно!'); return; }
+  r.attempts++; st.msgOk=false;
+  if(r.attempts===1) st.msg = 'Не совсем. ' + f.hint;
+  else if(r.attempts===2) st.msg = `Ещё попытка. Начинается на «${esc(f.answer[0])}…».`;
+  else { r.status='shown'; st.mode='reveal'; }
+  renderPanel();
+}
+
+function hint(){
+  const s=cur();
+  const f = (st.hintFor && !st.fx[st.hintFor.id].done) ? st.hintFor : left(s)[0];
+  if(!f) return;
+  st.hintFor = f;
+  if(st.hint===0){ st.msg = f.hint; st.msgOk=false; st.hint=1; render(); }
+  else if(st.hint===1){ st.pulse=f; st.msg='Смотри на место, обведённое красным.'; st.msgOk=false; st.hint=2; render(); }
+  else { openFix(f); }
+}
+
+function next(){
+  st.idx++; st.msg=''; st.hint=0; st.hintFor=null; st.pulse=null; st.misses=0;
+  if(st.idx >= list().length){ st.stage = st.stage==='s1' ? 's1done' : 'final'; }
+  st.mode='hunt'; render();
+  if(st.stage==='s1done' || st.stage==='final') window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function miss(sel, text){
+  st.misses++; st.missTotal[st.stage]++;
+  if(st.misses>=2) text += ' Это уже промах №' + st.misses + ': следующая найденная ошибка засчитается как «с подсказкой».';
+  st.msg=text; st.msgOk=false;
+  if(st.mode==='fix'){ st.open=null; st.mode='hunt'; render(); } else renderPanel();
+  const el=$(sel); if(el){ el.classList.remove('nope'); void el.offsetWidth; el.classList.add('nope'); }
+}
+
+function tap(el){
+  if(st.mode!=='hunt' && st.mode!=='fix') return;
+  const s=cur(); let f;
+  if(el.classList.contains('gap')){
+    const g=+el.dataset.g;
+    f = s.fixes.find(x => x.type==='insert' && x.gap===g && !st.fx[x.id].done);
+    if(!f) return miss(`.sent.active .gap[data-g="${g}"]`, 'Здесь ничего не пропущено.');
+  } else {
+    const from=+el.dataset.from;
+    f = s.fixes.find(x => x.type==='replace' && x.from===from && !st.fx[x.id].done);
+    if(!f) return miss(`.sent.active .seg[data-from="${from}"]`, isP(s.tokens[from]) ? 'Этот знак на месте.' : 'Здесь всё верно.');
+  }
+  if(st.open===f) return;
+  if(st.misses>=2) st.fx[f.id].hinted = true;
+  openFix(f);
+}
+
+$('#page').addEventListener('click', e => { const el=e.target.closest('.tap'); if(el) tap(el); });
+$('#page').addEventListener('keydown', e => { if(e.key!=='Enter' && e.key!==' ') return; const el=e.target.closest('.tap'); if(el){ e.preventDefault(); tap(el); } });
+
+$('#panel').addEventListener('input', e => {
+  if(e.target.id==='essay') st.essay = e.target.value;
+  if(e.target.dataset && e.target.dataset.c!=null) st.checks[+e.target.dataset.c] = e.target.checked;
+});
+
+function copyEssay(b){
+  const t = st.essay.trim();
+  if(!t){ b.textContent = 'Сначала напиши текст'; setTimeout(() => b.textContent='Скопировать текст', 1800); return; }
+  const done = () => { b.textContent = 'Скопировано — отправь мне в чат'; setTimeout(() => b.textContent='Скопировать текст', 2500); };
+  const fallback = () => { const ta=$('#essay'); ta.focus(); ta.select(); try{ document.execCommand('copy'); done(); }catch(e){ b.textContent='Выдели текст и скопируй вручную'; } };
+  if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(done, fallback);
+  else fallback();
+}
+
+$('#panel').addEventListener('click', e => {
+  const b = e.target.closest('[data-act]'); if(!b) return;
+  const a = b.dataset.act;
+  if(a==='start'){ st.stage='s1'; st.idx=0; st.mode='hunt'; render(); }
+  else if(a==='hint') hint();
+  else if(a==='opt') choose(+b.dataset.i);
+  else if(a==='check') check();
+  else if(a==='back'){ st.open=null; st.mode='hunt'; st.msg=''; render(); }
+  else if(a==='ack'){ const f=st.open; resolve(f,'shown','Разобрали.'); }
+  else if(a==='rule-ok'){ st.queue.shift(); if(st.queue.length) renderPanel(); else afterResolve(); }
+  else if(a==='next') next();
+  else if(a==='part2'){ st.stage='s2'; st.idx=0; st.mode='hunt'; st.misses=0; st.msg='Теперь исправление пишешь сама.'; st.msgOk=false; render(); window.scrollTo({top:0,behavior:'smooth'}); }
+  else if(a==='restart'){ reset(); render(); window.scrollTo({top:0,behavior:'smooth'}); }
+  else if(a==='copy') copyEssay(b);
+  else if(a==='speak') speak(b.dataset.text);
+});
+
+const canSpeak = 'speechSynthesis' in window;
+function speak(t){
+  if(!canSpeak) return;
+  try{
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(t);
+    const vs = speechSynthesis.getVoices();
+    const v = vs.find(v => v.lang==='en-GB') || vs.find(v => v.lang && v.lang.startsWith('en'));
+    u.lang = v ? v.lang : 'en-GB'; if(v) u.voice = v; u.rate = .9;
+    speechSynthesis.speak(u);
+  }catch(e){}
+}
+if(canSpeak){ try{ speechSynthesis.getVoices(); }catch(e){} }
+
+let rt; window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(fitLabels, 120); });
+if(document.fonts && document.fonts.ready) document.fonts.ready.then(fitLabels);
+
+reset(); render();
+</script>
+</body>
+</html>
